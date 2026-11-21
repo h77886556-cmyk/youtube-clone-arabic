@@ -21,7 +21,7 @@ export async function GET(req: Request) {
 
   if (type === "channels") {
     const where = {
-      OR: [{ name: { contains: q, mode: "insensitive" } }, { handle: { contains: q, mode: "insensitive" } }],
+      OR: [{ name: { contains: q, mode: "insensitive" as const } }, { handle: { contains: q, mode: "insensitive" as const } }],
     };
     const [channels, total] = await Promise.all([
       prisma.channel.findMany({
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
 
   const ilikeWhere = {
     visibility: "PUBLIC" as const, status: "READY" as const,
-    OR: [{ title: { contains: q, mode: "insensitive" } }, { description: { contains: q, mode: "insensitive" } }],
+    OR: [{ title: { contains: q, mode: "insensitive" as const } }, { description: { contains: q, mode: "insensitive" as const } }],
   };
   const channelInclude = { channel: { select: { id: true, name: true, handle: true, avatarUrl: true } } };
 
