@@ -1,0 +1,331 @@
+// Prisma Schema — يوتيوب عربي
+// قاعدة البيانات: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // للإنتاج على Neon: DATABASE_URL هو رابط الـ pool (المجمّع) و DIRECT_URL هو
+  // الرابط المباشر غير المجمّع — الـ migrations تحتاج الرابط المباشر.
+  // محلياً: اترك DIRECT_URL بنفس قيمة DATABASE_URL.
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------- Enums ----------
+enum Role {
+  USER
+  ADMIN
+}
+
+enum VideoVisibility {
+  PUBLIC
+  UNLISTED
+  PRIVATE
+}
+
+enum VideoStatus {
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum LikeType {
+  LIKE
+  DISLIKE
+}
+
+enum NotificationType {
+  NEW_VIDEO
+  COMMENT_REPLY
+  NEW_SUBSCRIBER
+  LIKE
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  REJECTED
+}
+
+enum ReportReason {
+  SPAM
+  VIOLENCE
+  HATE_SPEECH
+  COPYRIGHT
+  MISINFORMATION
+  OTHER
+}
+
+// ---------- المستخدمون والقنوات ----------
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  password      String? // null عند التسجيل عبر Google
+  image         String?
+  role          Role      @default(USER)
+  bio           String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  channel       Channel?
+  videos        Video[]
+  comments      Comment[]
+  likes         Like[]
+  subscriptions Subscription[] @relation("Subscriber")
+  playlists     Playlist[]
+  watchHistory  WatchHistory[]
+  notifications Notification[] @relation("NotificationRecipient")
+  sentNotifications Notification[] @relation("NotificationActor")
+  reports       Report[]
+  accounts      Account[]
+  sessions      Session[]
+
+  @@index([email])
+  @@index([createdAt])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Channel {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  name        String
+  handle      String   @unique // مثل @omar
+  description String?  @db.Text
+  avatarUrl   String?
+  bannerUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videos      Video[]
+  subscribers Subscription[] @relation("SubscribedChannel")
+
+  @@index([handle])
+}
+
+model Subscription {
+  id          String   @id @default(cuid())
+  subscriberId String // المستخدم المشترك
+  channelId   String // القناة المشترك بها
+  createdAt   DateTime @default(now())
+
+  subscriber User    @relation("Subscriber", fields: [subscriberId], references: [id], onDelete: Cascade)
+  channel    Channel @relation("SubscribedChannel", fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriberId, channelId])
+  @@index([channelId])
+  @@index([subscriberId])
+}
+
+// ---------- الفيديوهات ----------
+model Category {
+  id     String  @id @default(cuid())
+  name   String  @unique
+  slug   String  @unique
+  videos Video[]
+
+  @@index([slug])
+}
+
+model Tag {
+  id     String     @id @default(cuid())
+  name   String     @unique
+  videos VideoTag[]
+}
+
+model VideoTag {
+  videoId String
+  tagId   String
+  video   Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  tag     Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([videoId, tagId])
+}
+
+model Video {
+  id           String          @id @default(cuid())
+  title        String
+  description  String?         @db.Text
+  videoUrl     String // رابط Cloudinary / S3
+  thumbnailUrl String?
+  duration     Int             @default(0) // بالثواني
+  views        Int             @default(0)
+  visibility   VideoVisibility @default(PUBLIC)
+  status       VideoStatus     @default(READY)
+  categoryId   String?
+  authorId     String
+  channelId    String?
+  // عمود بحث نصي يُملأ من العنوان + الوصف (يُحدَّث عبر trigger أو من التطبيق)
+  searchVector Unsupported("tsvector")?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author       User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  channel      Channel?       @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  category     Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags         VideoTag[]
+  comments     Comment[]
+  likes        Like[]
+  playlistItems PlaylistItem[]
+  watchHistory WatchHistory[]
+  reports      Report[]
+
+  @@index([authorId])
+  @@index([channelId])
+  @@index([categoryId])
+  @@index([visibility, createdAt])
+  @@index([views])
+  @@index([createdAt])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  videoId   String
+  authorId  String
+  parentId  String? // رد على تعليق آخر (متداخل)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  video   Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  author  User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
+  likes   Like[]
+
+  @@index([videoId, createdAt])
+  @@index([parentId])
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  type      LikeType
+  userId    String
+  videoId   String?
+  commentId String?
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video   Video?   @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  // إعجاب واحد لكل مستخدم على كل فيديو / تعليق
+  @@unique([userId, videoId])
+  @@unique([userId, commentId])
+  @@index([videoId])
+  @@index([commentId])
+}
+
+// ---------- قوائم التشغيل والسجل ----------
+model Playlist {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  isWatchLater Boolean @default(false)
+  isLiked     Boolean  @default(false)
+  visibility  VideoVisibility @default(PRIVATE)
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items PlaylistItem[]
+
+  @@index([userId])
+}
+
+model PlaylistItem {
+  id         String   @id @default(cuid())
+  playlistId String
+  videoId    String
+  position   Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  video    Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, videoId])
+  @@index([playlistId, position])
+}
+
+model WatchHistory {
+  id         String   @id @default(cuid())
+  userId     String
+  videoId    String
+  progress   Int      @default(0) // آخر موضع بالثواني — لاستئناف المشاهدة
+  watchedAt  DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+  @@index([userId, watchedAt])
+}
+
+// ---------- الإشعارات والبلاغات ----------
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  userId    String // المستلم
+  actorId   String? // من قام بالفعل
+  videoId   String?
+  commentId String?
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user  User  @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead, createdAt])
+}
+
+model Report {
+  id        String       @id @default(cuid())
+  reason    ReportReason
+  details   String?      @db.Text
+  videoId   String?
+  commentId String?
+  reporterId String
+  status    ReportStatus @default(PENDING)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  video    Video? @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  reporter User   @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([videoId])
+}
