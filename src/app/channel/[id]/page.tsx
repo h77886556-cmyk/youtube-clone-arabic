@@ -2,10 +2,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import VideoCard from "@/components/VideoCard";
+import type { VideoItem } from "@/hooks/useVideos";
 import { formatViews } from "@/lib/utils";
 
 export default function ChannelPage({ params }: { params: { id: string } }) {
-  const [data, setData] = useState<{ channel: { id: string; name: string; handle: string; description?: string | null; avatarUrl?: string | null; videos: never[]; _count: { subscribers: number; videos: number } }; subscribed: boolean } | null>(null);
+  const [data, setData] = useState<{ channel: { id: string; name: string; handle: string; description?: string | null; avatarUrl?: string | null; videos: VideoItem[]; _count: { subscribers: number; videos: number } }; subscribed: boolean } | null>(null);
   const [subscribed, setSubscribed] = useState(false);
 
   useEffect(() => {
@@ -33,7 +34,7 @@ export default function ChannelPage({ params }: { params: { id: string } }) {
         </button>
       </div>
       <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {channel.videos.map((v: never) => <VideoCard key={(v as { id: string }).id} video={v as never} />)}
+        {channel.videos.map((v) => <VideoCard key={v.id} video={v} />)}
       </div>
     </div>
   );
