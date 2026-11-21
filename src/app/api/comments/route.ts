@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     include: { author: { select: { id: true, name: true, image: true } } },
   });
   // إشعار لصاحب الفيديو (ما لم يكن هو المعلق)
-  const video = await prisma.video.findUnique({ where: { id: parsed.data.videoId }, select: { authorId: true, title: true } });
+  const video = await prisma.video.findUnique({ where: { id: parsed.data.videoId }, select: { id: true, authorId: true, title: true } });
   if (video && video.authorId !== user.id) {
     await prisma.notification.create({
       data: { type: parsed.data.parentId ? "COMMENT_REPLY" : "COMMENT_REPLY", userId: video.authorId, actorId: user.id, videoId: video.id, message: `علّق ${user.name ?? "مستخدم"} على فيديوك: ${video.title}` },
