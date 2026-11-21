@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import VideoCard from "@/components/VideoCard";
+import type { VideoItem } from "@/hooks/useVideos";
 
 export default function SubscriptionsPage() {
   const [subs, setSubs] = useState<{ id: string; channel: { id: string; name: string; handle: string; avatarUrl?: string | null; _count: { subscribers: number } } }[]>([]);
-  const [videos, setVideos] = useState<never[]>([]);
+  const [videos, setVideos] = useState<VideoItem[]>([]);
   useEffect(() => {
     fetch("/api/subscriptions").then((r) => r.json()).then(async (d) => {
       const list = d.subscriptions ?? [];
       setSubs(list);
       // أحدث فيديوهات القنوات المشترك بها
-      const all: never[] = [];
+      const all: VideoItem[] = [];
       for (const s of list.slice(0, 5)) {
         const ch = await fetch(`/api/channels/${s.channel.id}`).then((r) => r.json()).catch(() => null);
         if (ch?.channel?.videos) all.push(...ch.channel.videos);
@@ -33,7 +34,7 @@ export default function SubscriptionsPage() {
         {subs.length === 0 && <p className="text-gray-500">لم تشترك في أي قناة بعد.</p>}
       </div>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {videos.map((v: never) => <VideoCard key={(v as { id: string }).id} video={v as never} />)}
+        {videos.map((v) => <VideoCard key={v.id} video={v} />)}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 // التخطيط الجذري — RTL + خط Cairo + مزودو الجلسة والثيم و React Query
 import type { Metadata } from "next";
 import { Cairo } from "next/font/google";
-import { SessionProvider } from "next-auth/react";
+import SessionProviderWrapper from "@/components/SessionProviderWrapper";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import QueryProvider from "@/components/QueryProvider";
@@ -19,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ar" dir="rtl" className={cairo.variable}>
       <body>
-        <SessionProvider>
+        <SessionProviderWrapper>
           <QueryProvider>
             <ThemeProvider>
               <Header />
@@ -29,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </div>
             </ThemeProvider>
           </QueryProvider>
-        </SessionProvider>
+        </SessionProviderWrapper>
       </body>
     </html>
   );
