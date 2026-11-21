@@ -17,17 +17,24 @@ export default function Comments({ videoId }: { videoId: string }) {
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [text, setText] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
+  // نص كل رد مستقل عن نص التعليق الرئيسي (state مستقل لكل رد مفتوح)
+  const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
 
   const load = () => fetch(`/api/comments?videoId=${videoId}`).then((r) => r.json()).then((d) => setComments(d.comments ?? []));
   useEffect(() => { load(); }, [videoId]);
 
   const submit = async (parentId?: string | null) => {
-    if (!text.trim()) return;
+    const content = parentId ? (replyTexts[parentId] ?? "") : text;
+    if (!content.trim()) return;
     const res = await fetch("/api/comments", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: text, videoId, parentId: parentId ?? null }),
+      body: JSON.stringify({ content, videoId, parentId: parentId ?? null }),
     });
-    if (res.ok) { setText(""); setReplyTo(null); load(); }
+    if (res.ok) {
+      if (parentId) setReplyTexts((prev) => ({ ...prev, [parentId]: "" }));
+      else setText("");
+      setReplyTo(null); load();
+    }
   };
 
   const like = (id: string) => fetch(`/api/comments/${id}`, { method: "POST" }).then(load);
@@ -49,7 +56,7 @@ export default function Comments({ videoId }: { videoId: string }) {
           </div>
           {replyTo === c.id && (
             <div className="mt-2 flex gap-2">
-              <input autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder="اكتب رداً..." className="flex-1 rounded-full border px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-800" />
+              <input autoFocus value={replyTexts[c.id] ?? ""} onChange={(e) => setReplyTexts((prev) => ({ ...prev, [c.id]: e.target.value }))} placeholder="اكتب رداً..." className="flex-1 rounded-full border px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-800" />
               <button onClick={() => submit(c.id)} className="rounded-full bg-blue-600 px-4 py-1.5 text-sm text-white">نشر</button>
             </div>
           )}

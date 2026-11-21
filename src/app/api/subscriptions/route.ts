@@ -18,6 +18,8 @@ export async function POST(req: Request) {
   if (!user) return jsonError("يجب تسجيل الدخول", 401);
   const { channelId } = await req.json();
   if (!channelId) return jsonError("channelId مطلوب", 422);
+  const channel = await prisma.channel.findUnique({ where: { id: channelId }, select: { userId: true, name: true } });
+  if (!channel) return jsonError("القناة غير موجودة", 404);
   const existing = await prisma.subscription.findUnique({
     where: { subscriberId_channelId: { subscriberId: user.id, channelId } },
   });
@@ -25,7 +27,6 @@ export async function POST(req: Request) {
     await prisma.subscription.delete({ where: { id: existing.id } });
     return Response.json({ subscribed: false });
   }
-  const channel = await prisma.channel.findUnique({ where: { id: channelId }, select: { userId: true, name: true } });
   const sub = await prisma.subscription.create({ data: { subscriberId: user.id, channelId } });
   if (channel && channel.userId !== user.id) {
     await prisma.notification.create({

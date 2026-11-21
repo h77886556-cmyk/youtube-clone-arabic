@@ -5,10 +5,15 @@ import { timeAgo } from "@/lib/utils";
 
 export default function NotificationsPage() {
   const [data, setData] = useState<{ notifications: { id: string; message: string; isRead: boolean; createdAt: string; actor?: { name?: string | null } | null }[]; unread: number }>({ notifications: [], unread: 0 });
+  const [error, setError] = useState("");
   useEffect(() => {
-    fetch("/api/notifications").then((r) => r.json()).then(setData).catch(() => null);
-    fetch("/api/notifications", { method: "PATCH" }).catch(() => null);
+    fetch("/api/notifications").then(async (r) => {
+      if (!r.ok) { setError("سجّل الدخول أولاً"); return; }
+      setData(await r.json());
+      fetch("/api/notifications", { method: "PATCH" }).catch(() => null);
+    }).catch(() => null);
   }, []);
+  if (error) return <p>{error}</p>;
   return (
     <div>
       <h1 className="mb-4 text-2xl font-bold">الإشعارات {data.unread > 0 && `(${data.unread} غير مقروءة)`}</h1>

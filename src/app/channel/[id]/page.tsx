@@ -8,11 +8,16 @@ import { formatViews } from "@/lib/utils";
 export default function ChannelPage({ params }: { params: { id: string } }) {
   const [data, setData] = useState<{ channel: { id: string; name: string; handle: string; description?: string | null; avatarUrl?: string | null; videos: VideoItem[]; _count: { subscribers: number; videos: number } }; subscribed: boolean } | null>(null);
   const [subscribed, setSubscribed] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch(`/api/channels/${params.id}`).then((r) => r.json()).then((d) => { setData(d); setSubscribed(d.subscribed); });
+    fetch(`/api/channels/${params.id}`).then(async (r) => {
+      if (!r.ok) { setError("القناة غير موجودة"); return; }
+      const d = await r.json(); setData(d); setSubscribed(d.subscribed);
+    }).catch(() => setError("القناة غير موجودة"));
   }, [params.id]);
 
+  if (error) return <p>{error}</p>;
   if (!data) return <p>جارٍ التحميل...</p>;
   const { channel } = data;
   const toggle = async () => {

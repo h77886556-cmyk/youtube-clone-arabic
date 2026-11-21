@@ -1,5 +1,6 @@
 // تسجيل الدخول — بريد + Google
 "use client";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useState } from "react";
 
@@ -23,6 +24,9 @@ export default function SignInPage() {
         <button className="w-full rounded-lg bg-red-600 py-2 text-white">دخول</button>
       </form>
       <button onClick={() => signIn("google", { callbackUrl: "/" })} className="mt-3 w-full rounded-lg border py-2 text-sm dark:border-zinc-700">الدخول عبر Google</button>
+      <p className="mt-4 text-center text-sm text-gray-500">
+        ليس لديك حساب؟ <Link href="/auth/signup" className="text-blue-600 hover:underline">إنشاء حساب جديد</Link>
+      </p>
     </div>
   );
 }

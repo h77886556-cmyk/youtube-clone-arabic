@@ -30,8 +30,14 @@ export default function Header() {
             <Link href="/notifications" aria-label="الإشعارات" className="rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/10">
               <Bell className="h-5 w-5" />
             </Link>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={session.user?.image ?? "/avatar.png"} alt="المستخدم" className="h-8 w-8 rounded-full object-cover" onClick={() => signOut()} title="تسجيل الخروج" />
+            {session.user?.image ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={session.user.image} alt="المستخدم" className="h-8 w-8 cursor-pointer rounded-full object-cover" onClick={() => signOut()} title="تسجيل الخروج" />
+            ) : (
+              <span onClick={() => signOut()} title="تسجيل الخروج" className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-red-100 text-sm font-bold text-red-600 dark:bg-red-900/40">
+                {session.user?.name?.[0] ?? "؟"}
+              </span>
+            )}
           </>
         ) : (
           <button onClick={() => signIn()} className="rounded-full border border-blue-600 px-4 py-1.5 text-sm text-blue-600">تسجيل الدخول</button>

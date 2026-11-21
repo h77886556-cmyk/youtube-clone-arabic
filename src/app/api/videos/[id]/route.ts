@@ -5,17 +5,21 @@ import { getCurrentUser, jsonError } from "@/lib/session";
 import { videoUpdateSchema } from "@/lib/validations";
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  const video = await prisma.video.findUnique({
-    where: { id: params.id },
-    include: {
-      channel: { select: { id: true, name: true, handle: true, avatarUrl: true, description: true,
-        _count: { select: { subscribers: true } } } },
-      tags: { include: { tag: true } },
-      _count: { select: { likes: true, comments: true } },
-    },
-  });
+  const [video, likes] = await Promise.all([
+    prisma.video.findUnique({
+      where: { id: params.id },
+      include: {
+        channel: { select: { id: true, name: true, handle: true, avatarUrl: true, description: true,
+          _count: { select: { subscribers: true } } } },
+        tags: { include: { tag: true } },
+        _count: { select: { comments: true } },
+      },
+    }),
+    // عدّ الإعجابات فقط (type = LIKE) — فـ _count.likes كان يعدّ عدم الإعجاب أيضاً
+    prisma.like.count({ where: { videoId: params.id, type: "LIKE" } }),
+  ]);
   if (!video) return jsonError("الفيديو غير موجود", 404);
-  return Response.json({ video });
+  return Response.json({ video: { ...video, _count: { likes, comments: video._count.comments } } });
 }
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {

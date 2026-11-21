@@ -19,10 +19,14 @@ export default function WatchPage({ params }: { params: { id: string } }) {
   const [subscribed, setSubscribed] = useState(false);
   const video = data?.video;
 
-  // تسجيل مشاهدة عند الفتح (مرة واحدة)
+  // حالة الإعجاب والاشتراك الحالية — تُجلب بعد تحميل الفيديو (لا يبدأ الزرّان من null/false دائماً)
   useEffect(() => {
-    fetch(`/api/videos/${params.id}/view`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ progress: 0 }) }).catch(() => null);
-  }, [params.id]);
+    if (!video) return;
+    fetch(`/api/videos/${video.id}/like`).then((r) => r.json()).then((d) => setLiked(d.liked ?? null)).catch(() => null);
+    if (video.channelId) {
+      fetch(`/api/channels/${video.channelId}`).then((r) => r.json()).then((d) => setSubscribed(!!d.subscribed)).catch(() => null);
+    }
+  }, [video]);
 
   if (isLoading) return <p>جارٍ التحميل...</p>;
   if (!video) return <p>الفيديو غير موجود.</p>;

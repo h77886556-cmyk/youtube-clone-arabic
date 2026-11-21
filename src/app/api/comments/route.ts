@@ -12,7 +12,18 @@ export async function GET(req: Request) {
     orderBy: { createdAt: "desc" }, take: 50,
     include: {
       author: { select: { id: true, name: true, image: true } },
-      replies: { orderBy: { createdAt: "asc" }, include: { author: { select: { id: true, name: true, image: true } } } },
+      // مستوى ردود ثانٍ داخل الردود حتى لا تختفي الردود على الردود
+      replies: {
+        orderBy: { createdAt: "asc" },
+        include: {
+          author: { select: { id: true, name: true, image: true } },
+          replies: {
+            orderBy: { createdAt: "asc" },
+            include: { author: { select: { id: true, name: true, image: true } } },
+          },
+          _count: { select: { likes: true } },
+        },
+      },
       _count: { select: { likes: true } },
     },
   });
@@ -24,6 +35,12 @@ export async function POST(req: Request) {
   if (!user) return jsonError("يجب تسجيل الدخول", 401);
   const parsed = commentSchema.safeParse(await req.json());
   if (!parsed.success) return jsonError(parsed.error.issues[0].message, 422);
+  const videoExists = await prisma.video.findUnique({ where: { id: parsed.data.videoId }, select: { id: true } });
+  if (!videoExists) return jsonError("الفيديو غير موجود", 404);
+  if (parsed.data.parentId) {
+    const parentExists = await prisma.comment.findUnique({ where: { id: parsed.data.parentId }, select: { id: true } });
+    if (!parentExists) return jsonError("التعليق الأصلي غير موجود", 404);
+  }
   const comment = await prisma.comment.create({
     data: { ...parsed.data, authorId: user.id },
     include: { author: { select: { id: true, name: true, image: true } } },
@@ -32,7 +49,7 @@ export async function POST(req: Request) {
   const video = await prisma.video.findUnique({ where: { id: parsed.data.videoId }, select: { id: true, authorId: true, title: true } });
   if (video && video.authorId !== user.id) {
     await prisma.notification.create({
-      data: { type: parsed.data.parentId ? "COMMENT_REPLY" : "COMMENT_REPLY", userId: video.authorId, actorId: user.id, videoId: video.id, message: `علّق ${user.name ?? "مستخدم"} على فيديوك: ${video.title}` },
+      data: { type: "COMMENT_REPLY", userId: video.authorId, actorId: user.id, videoId: video.id, message: `علّق ${user.name ?? "مستخدم"} على فيديوك: ${video.title}` },
     }).catch(() => null);
   }
   return Response.json({ comment }, { status: 201 });

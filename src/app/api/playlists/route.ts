@@ -9,7 +9,7 @@ export async function GET() {
   if (!user) return jsonError("يجب تسجيل الدخول", 401);
   const playlists = await prisma.playlist.findMany({
     where: { userId: user.id }, orderBy: { createdAt: "desc" },
-    include: { items: { include: { video: { select: { id: true, title: true, thumbnailUrl: true, duration: true } } }, orderBy: { position: "asc" } } },
+    include: { items: { include: { video: { select: { id: true, title: true, thumbnailUrl: true, duration: true, views: true, createdAt: true, channel: { select: { id: true, name: true, handle: true, avatarUrl: true } } } } }, orderBy: { position: "asc" } } },
   });
   return Response.json({ playlists });
 }

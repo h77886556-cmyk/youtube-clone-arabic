@@ -10,8 +10,11 @@ const PAGE_SIZE = 12;
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const page = Math.max(1, Number(searchParams.get("page") ?? 1));
-  const limit = Math.min(50, Number(searchParams.get("limit") ?? PAGE_SIZE));
+  // تحويل آمن: أي قيمة غير رقمية ترجع للافتراضي بدل NaN
+  const rawPage = Number(searchParams.get("page") ?? 1);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+  const rawLimit = Number(searchParams.get("limit") ?? PAGE_SIZE);
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(50, Math.floor(rawLimit)) : PAGE_SIZE;
   const sort = searchParams.get("sort") ?? "latest";
   const categoryId = searchParams.get("categoryId");
   const channelId = searchParams.get("channelId");
@@ -28,18 +31,26 @@ export async function GET(req: Request) {
     ...(channelId ? { channelId } : {}),
   };
 
-  const [videos, total] = await Promise.all([
+  const [videos, total, likeCounts] = await Promise.all([
     prisma.video.findMany({
       where, orderBy, skip: (page - 1) * limit, take: limit,
       include: {
         channel: { select: { id: true, name: true, handle: true, avatarUrl: true } },
-        _count: { select: { likes: true, comments: true } },
+        _count: { select: { comments: true } },
       },
     }),
     prisma.video.count({ where }),
+    // عدّ الإعجابات فقط (type = LIKE) — فـ _count.likes كان يعدّ عدم الإعجاب أيضاً
+    prisma.like.groupBy({ by: ["videoId"], where: { type: "LIKE" }, _count: true }),
   ]);
 
-  return Response.json({ videos, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+  const likesMap = new Map(likeCounts.map((g) => [g.videoId, g._count]));
+  const videosWithLikes = videos.map((v) => ({
+    ...v,
+    _count: { likes: likesMap.get(v.id) ?? 0, comments: v._count.comments },
+  }));
+
+  return Response.json({ videos: videosWithLikes, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
 }
 
 export async function POST(req: Request) {

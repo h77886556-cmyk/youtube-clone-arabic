@@ -6,11 +6,16 @@ import { formatViews } from "@/lib/utils";
 
 export default function StudioPage() {
   const [data, setData] = useState<{ stats: { views: number; subscribers: number; videos: number; likes: number }; videos: { id: string; title: string; views: number; visibility: string; createdAt: string; _count: { likes: number; comments: number } }[] } | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/studio/stats").then((r) => r.json()).then(setData);
+    fetch("/api/studio/stats").then(async (r) => {
+      if (!r.ok) { setError("سجّل الدخول أولاً"); return; }
+      setData(await r.json());
+    }).catch(() => setError("تعذر تحميل الاستوديو"));
   }, []);
 
+  if (error) return <p>{error}</p>;
   if (!data) return <p>جارٍ التحميل...</p>;
   const { stats, videos } = data;
   const cards = [

@@ -5,7 +5,6 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, jsonError } from "@/lib/session";
 
-
 // قائمة Liked الخاصة بالمستخدم — تُنشأ عند أول إعجاب إن لم تكن موجودة
 async function getOrCreateLikedPlaylist(userId: string) {
   const existing = await prisma.playlist.findFirst({ where: { userId, isLiked: true } });
@@ -15,13 +14,11 @@ async function getOrCreateLikedPlaylist(userId: string) {
   });
 }
 
-
 async function removeFromLikedPlaylist(userId: string, videoId: string) {
   const liked = await prisma.playlist.findFirst({ where: { userId, isLiked: true } });
   if (!liked) return;
   await prisma.playlistItem.deleteMany({ where: { playlistId: liked.id, videoId } });
 }
-
 
 async function addToLikedPlaylist(userId: string, videoId: string) {
   const liked = await getOrCreateLikedPlaylist(userId);
@@ -33,13 +30,23 @@ async function addToLikedPlaylist(userId: string, videoId: string) {
   });
 }
 
+// GET /api/videos/[id]/like — نوع تفاعل المستخدم الحالي مع الفيديو (أو null)
+export async function GET(_req: Request, { params }: { params: { id: string } }) {
+  const user = await getCurrentUser();
+  if (!user) return Response.json({ liked: null });
+  const existing = await prisma.like.findUnique({
+    where: { userId_videoId: { userId: user.id, videoId: params.id } },
+  });
+  return Response.json({ liked: existing?.type ?? null });
+}
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) return jsonError("يجب تسجيل الدخول", 401);
   const { type } = await req.json();
   if (!["LIKE", "DISLIKE"].includes(type)) return jsonError("نوع غير صالح", 422);
-
+  const video = await prisma.video.findUnique({ where: { id: params.id }, select: { id: true } });
+  if (!video) return jsonError("الفيديو غير موجود", 404);
 
   const existing = await prisma.like.findUnique({
     where: { userId_videoId: { userId: user.id, videoId: params.id } },
@@ -60,4 +67,3 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   else await removeFromLikedPlaylist(user.id, params.id);
   return Response.json({ liked: like.type });
 }
-
