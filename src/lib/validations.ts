@@ -32,6 +32,11 @@ export const registerSchema = z.object({
   password: z.string().min(8, "كلمة المرور 8 أحرف على الأقل"),
 });
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "كلمة المرور الحالية مطلوبة"),
+  newPassword: z.string().min(8, "كلمة المرور الجديدة 8 أحرف على الأقل"),
+});
+
 export const reportSchema = z.object({
   reason: z.enum(["SPAM", "VIOLENCE", "HATE_SPEECH", "COPYRIGHT", "MISINFORMATION", "OTHER"]),
   details: z.string().max(1000).optional(),
