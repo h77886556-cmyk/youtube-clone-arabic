@@ -2,9 +2,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import VideoCard from "@/components/VideoCard";
+import type { VideoItem } from "@/hooks/useVideos";
 
 export default function HistoryPage() {
-  const [history, setHistory] = useState<{ id: string; video: never; progress: number }[]>([]);
+  const [history, setHistory] = useState<{ id: string; video: VideoItem; progress: number }[]>([]);
   useEffect(() => {
     fetch("/api/history").then((r) => r.json()).then((d) => setHistory(d.history ?? []));
   }, []);
@@ -21,7 +22,7 @@ export default function HistoryPage() {
       </div>
       {history.length === 0 && <p className="text-gray-500">لا يوجد سجل بعد.</p>}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {history.map((h) => <VideoCard key={h.id} video={h.video as never} />)}
+        {history.map((h) => <VideoCard key={h.id} video={h.video} />)}
       </div>
     </div>
   );
