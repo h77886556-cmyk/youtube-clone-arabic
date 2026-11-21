@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import VideoCard from "@/components/VideoCard";
-import { useSearch } from "@/hooks/useVideos";
+import { useSearch, type VideoItem } from "@/hooks/useVideos";
 
 function Results() {
   const q = useSearchParams().get("q") ?? "";
@@ -15,7 +15,7 @@ function Results() {
       {isLoading && <p>جارٍ البحث...</p>}
       {!isLoading && videos.length === 0 && <p className="text-gray-500">لا توجد نتائج مطابقة.</p>}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {videos.map((v: never) => <VideoCard key={(v as { id: string }).id} video={v as never} />)}
+        {videos.map((v: VideoItem) => <VideoCard key={v.id} video={v} />)}
       </div>
     </div>
   );
